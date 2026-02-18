@@ -27,6 +27,16 @@ button {
 button:hover {
 	background: var(--cor-botao-hover);
 }
+.acoes-json {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: var(--espacamento);
+}
+.acoes-json small {
+	color: #555;
+}
 table {
 	width: 100%;
 	max-width: var(--max-width);

@@ -8,6 +8,38 @@ document.addEventListener("DOMContentLoaded", () => {
 	const cancelarBtn = document.getElementById("cancelarBtn");
 	let editIndex = null;
 
+	function criarAcoesJson() {
+		const barra = document.createElement("div");
+		barra.className = "acoes-json";
+
+		const carregarBtn = document.createElement("button");
+		carregarBtn.type = "button";
+		carregarBtn.textContent = "Carregar JSON";
+
+		const exportarBtn = document.createElement("button");
+		exportarBtn.type = "button";
+		exportarBtn.textContent = "Salvar JSON";
+
+		const aviso = document.createElement("small");
+		aviso.textContent = "Use Carregar JSON para ler especies_madeira.json no file://";
+
+		carregarBtn.onclick = async () => {
+			const carregou = await window.importarEspecies();
+			if (carregou) {
+				renderTabelas();
+			}
+		};
+
+		exportarBtn.onclick = async () => {
+			await window.exportarEspecies();
+		};
+
+		barra.appendChild(carregarBtn);
+		barra.appendChild(exportarBtn);
+		barra.appendChild(aviso);
+		novoRegistroBtn.insertAdjacentElement("afterend", barra);
+	}
+
 	function renderTabelas() {
 		const especies = window.getEspecies();
 		const categoriaIdMap = {
@@ -79,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		dialog.close();
 	};
 
-	form.onsubmit = (e) => {
+	form.onsubmit = async (e) => {
 		e.preventDefault();
 		const especie = {
 			nomePopular: form.nomePopular.value.trim(),
@@ -95,5 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		renderTabelas();
 	};
 
+	criarAcoesJson();
 	renderTabelas();
 });
