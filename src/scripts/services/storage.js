@@ -1,224 +1,187 @@
-// src/scripts/services/storage.js
-// Estado em memoria e exportacao manual para JSON.
-
 const NOME_ARQUIVO_EXPORTACAO = "especies_madeira.json";
+
 let especiesEmMemoria = [];
 let arquivoEspeciesHandle = null;
 
-async function carregarEspeciesIniciais() {
-	try {
-		if (window.location.protocol === "file:") {
-			return;
-		}
+const DB_NAME = "woodex-db";
+const STORE_NAME = "arquivos";
 
-		const resposta = await fetch(`./${NOME_ARQUIVO_EXPORTACAO}`, {
-			cache: "no-store",
-		});
-
-		if (!resposta.ok) {
-			return;
-		}
-
-		const dados = await resposta.json();
-		if (Array.isArray(dados) && especiesEmMemoria.length === 0) {
-			especiesEmMemoria = [...dados];
-		}
-	} catch (erro) {
-		// Mantem o app funcional mesmo sem arquivo local.
-	}
-}
-
-function lerArquivoComoTexto(arquivo) {
+function abrirDB() {
 	return new Promise((resolve, reject) => {
-		const leitor = new FileReader();
-		leitor.onload = () => resolve(String(leitor.result || ""));
-		leitor.onerror = () => reject(leitor.error || new Error("Falha ao ler arquivo."));
-		leitor.readAsText(arquivo, "utf-8");
+		const req = indexedDB.open(DB_NAME, 1);
+
+		req.onupgradeneeded = () => {
+			req.result.createObjectStore(STORE_NAME);
+		};
+
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
 	});
 }
 
-async function garantirPermissaoEscrita(handle) {
-	if (!handle || typeof handle.queryPermission !== "function") {
-		return false;
-	}
+async function salvarHandle(handle) {
+	const db = await abrirDB();
+	const tx = db.transaction(STORE_NAME, "readwrite");
 
-	let permissao = await handle.queryPermission({ mode: "readwrite" });
-	if (permissao === "granted") {
+	tx.objectStore(STORE_NAME).put(handle, "arquivo");
+
+	return tx.complete;
+}
+
+async function carregarHandleSalvo() {
+	const db = await abrirDB();
+	const tx = db.transaction(STORE_NAME, "readonly");
+
+	return new Promise((resolve) => {
+		const req = tx.objectStore(STORE_NAME).get("arquivo");
+
+		req.onsuccess = () => resolve(req.result || null);
+		req.onerror = () => resolve(null);
+	});
+}
+
+async function carregarEspeciesIniciais() {
+	try {
+		arquivoEspeciesHandle = await carregarHandleSalvo();
+
+		if (!arquivoEspeciesHandle) return false;
+
+		const permissao = await arquivoEspeciesHandle.queryPermission({
+			mode: "readwrite",
+		});
+
+		if (permissao !== "granted") return false;
+
+		const file = await arquivoEspeciesHandle.getFile();
+
+		const texto = await file.text();
+
+		const dados = JSON.parse(texto);
+
+		if (Array.isArray(dados)) {
+			especiesEmMemoria = dados;
+		}
+
 		return true;
-	}
-
-	if (typeof handle.requestPermission !== "function") {
+	} catch (erro) {
+		console.warn("Erro ao carregar arquivo salvo", erro);
 		return false;
 	}
-
-	permissao = await handle.requestPermission({ mode: "readwrite" });
-	return permissao === "granted";
 }
 
 function getEspecies() {
 	return [...especiesEmMemoria];
 }
 
-function saveEspecies(lista) {
-	especiesEmMemoria = Array.isArray(lista) ? [...lista] : [];
+async function autoSalvar() {
+	if (!arquivoEspeciesHandle) return;
+
+	try {
+		await exportarEspecies();
+	} catch (erro) {
+		console.warn("Falha no auto-salvamento", erro);
+	}
 }
 
 function addEspecie(especie) {
 	especiesEmMemoria.push(especie);
+	autoSalvar();
 }
 
 function updateEspecie(index, especie) {
-	if (index < 0 || index >= especiesEmMemoria.length) {
-		return;
-	}
+	if (index < 0 || index >= especiesEmMemoria.length) return;
+
 	especiesEmMemoria[index] = especie;
+
+	autoSalvar();
 }
 
 function removeEspecie(index) {
-	if (index < 0 || index >= especiesEmMemoria.length) {
-		return;
-	}
+	if (index < 0 || index >= especiesEmMemoria.length) return;
+
 	especiesEmMemoria.splice(index, 1);
+
+	autoSalvar();
+}
+
+async function garantirPermissaoEscrita(handle) {
+	if (!handle) return false;
+
+	let permissao = await handle.queryPermission({ mode: "readwrite" });
+
+	if (permissao === "granted") return true;
+
+	permissao = await handle.requestPermission({ mode: "readwrite" });
+
+	return permissao === "granted";
 }
 
 async function importarEspecies() {
-	let arquivo = null;
-
-	if (typeof window.showOpenFilePicker === "function") {
-		try {
-			const [fileHandle] = await window.showOpenFilePicker({
-				id: "woodex-especies-open",
-				multiple: false,
-				types: [
-					{
-						description: "Arquivo JSON",
-						accept: {
-							"application/json": [".json"],
-						},
-					},
-				],
-			});
-
-			if (!fileHandle) {
-				return false;
-			}
-
-			arquivoEspeciesHandle = fileHandle;
-			arquivo = await fileHandle.getFile();
-		} catch (erro) {
-			if (erro && erro.name === "AbortError") {
-				return false;
-			}
-		}
-	}
-
-	if (!arquivo) {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".json,application/json";
-		input.style.display = "none";
-
-		arquivo = await new Promise((resolve) => {
-			input.addEventListener("change", () => {
-				resolve(input.files && input.files[0] ? input.files[0] : null);
-			});
-			document.body.appendChild(input);
-			input.click();
-			document.body.removeChild(input);
-		});
-		arquivoEspeciesHandle = null;
-	}
-
-	if (!arquivo) {
+	if (typeof window.showOpenFilePicker !== "function") {
+		alert("Seu navegador não suporta abrir arquivos.");
 		return false;
 	}
 
 	try {
-		const texto = await lerArquivoComoTexto(arquivo);
-		if (!texto.trim()) {
-			console.warn("Arquivo JSON vazio.");
-			return false;
-		}
+		const [fileHandle] = await window.showOpenFilePicker({
+			types: [
+				{
+					description: "JSON",
+					accept: { "application/json": [".json"] },
+				},
+			],
+		});
+
+		arquivoEspeciesHandle = fileHandle;
+
+		await salvarHandle(fileHandle);
+
+		const arquivo = await fileHandle.getFile();
+
+		const texto = await arquivo.text();
 
 		const dados = JSON.parse(texto);
-		if (!Array.isArray(dados)) {
-			console.warn("JSON invalido: esperado um array.");
-			return false;
-		}
 
-		especiesEmMemoria = [...dados];
+		if (!Array.isArray(dados)) return false;
+
+		especiesEmMemoria = dados;
+
 		return true;
 	} catch (erro) {
-		console.warn("Falha ao importar JSON.", erro);
+		if (erro.name !== "AbortError") {
+			console.warn("Erro ao importar JSON", erro);
+		}
 		return false;
 	}
 }
 
 async function exportarEspecies() {
+	if (!arquivoEspeciesHandle) return;
+
+	const podeEscrever = await garantirPermissaoEscrita(arquivoEspeciesHandle);
+
+	if (!podeEscrever) return;
+
 	const conteudo = JSON.stringify(especiesEmMemoria, null, 2);
 
-	if (arquivoEspeciesHandle) {
-		try {
-			const podeEscrever = await garantirPermissaoEscrita(arquivoEspeciesHandle);
-			if (podeEscrever) {
-				const writableDireto = await arquivoEspeciesHandle.createWritable();
-				await writableDireto.write(conteudo);
-				await writableDireto.close();
-				return;
-			}
-		} catch (erro) {
-			console.warn("Falha ao salvar no arquivo carregado.", erro);
-		}
-	}
+	const writable = await arquivoEspeciesHandle.createWritable();
 
-	if (typeof window.showSaveFilePicker === "function") {
-		try {
-			const fileHandle = await window.showSaveFilePicker({
-				suggestedName: NOME_ARQUIVO_EXPORTACAO,
-				types: [
-					{
-						description: "Arquivo JSON",
-						accept: {
-							"application/json": [".json"],
-						},
-					},
-				],
-			});
+	await writable.write(conteudo);
 
-			const writable = await fileHandle.createWritable();
-			await writable.write(conteudo);
-			await writable.close();
-			arquivoEspeciesHandle = fileHandle;
-			return;
-		} catch (erro) {
-			if (erro && erro.name === "AbortError") {
-				return;
-			}
-			console.warn("Falha ao salvar pelo seletor.", erro);
-		}
-	}
-
-	const blob = new Blob([conteudo], { type: "application/json" });
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement("a");
-
-	link.href = url;
-	link.download = NOME_ARQUIVO_EXPORTACAO;
-	link.style.display = "none";
-
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-
-	URL.revokeObjectURL(url);
+	await writable.close();
 }
 
 window.getEspecies = getEspecies;
-window.saveEspecies = saveEspecies;
 window.addEspecie = addEspecie;
 window.updateEspecie = updateEspecie;
 window.removeEspecie = removeEspecie;
-window.exportarEspecies = exportarEspecies;
 window.importarEspecies = importarEspecies;
+window.exportarEspecies = exportarEspecies;
 
-carregarEspeciesIniciais();
+(async () => {
+	const carregou = await carregarEspeciesIniciais();
+
+	if (carregou) {
+		if (window.renderTabelas) window.renderTabelas();
+	}
+})();

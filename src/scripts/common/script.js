@@ -1,99 +1,131 @@
-// src/scripts/common/script.js
-
 document.addEventListener("DOMContentLoaded", () => {
 	const dialog = document.getElementById("registroDialog");
 	const form = document.getElementById("registroForm");
 	const novoRegistroBtn = document.getElementById("novoRegistroBtn");
-	const salvarBtn = document.getElementById("salvarBtn");
-	const cancelarBtn = document.getElementById("cancelarBtn");
+
 	let editIndex = null;
 
-	function criarAcoesJson() {
+	const categoriaIdMap = {
+		CITES: "cites-table",
+		"Não-CITES": "nao-cites-table",
+		Ameaçadas: "ameacadas-table",
+	};
+
+	function criarInterfaceExtra() {
 		const barra = document.createElement("div");
-		barra.className = "acoes-json";
 
 		const carregarBtn = document.createElement("button");
-		carregarBtn.type = "button";
 		carregarBtn.textContent = "Carregar JSON";
 
-		const exportarBtn = document.createElement("button");
-		exportarBtn.type = "button";
-		exportarBtn.textContent = "Salvar JSON";
+		const busca = document.createElement("input");
+		busca.placeholder = "Buscar espécie...";
 
-		const aviso = document.createElement("small");
-		aviso.textContent = "Use Carregar JSON para ler especies_madeira.json no file://";
-
-		carregarBtn.onclick = async () => {
-			const carregou = await window.importarEspecies();
-			if (carregou) {
-				renderTabelas();
-			}
-		};
-
-		exportarBtn.onclick = async () => {
-			await window.exportarEspecies();
-		};
+		const contador = document.createElement("div");
 
 		barra.appendChild(carregarBtn);
-		barra.appendChild(exportarBtn);
-		barra.appendChild(aviso);
-		novoRegistroBtn.insertAdjacentElement("afterend", barra);
+		barra.appendChild(busca);
+		barra.appendChild(contador);
+
+		novoRegistroBtn.after(barra);
+
+		carregarBtn.onclick = async () => {
+	const carregou = await window.importarEspecies();
+
+	if (carregou) renderTabelas();
+};
+
+		busca.oninput = () => {
+			renderTabelas(busca.value);
+		};
 	}
 
-	function renderTabelas() {
+	function renderTabelas(filtro = "") {
 		const especies = window.getEspecies();
-		const categoriaIdMap = {
-			CITES: "cites-table",
-			"Não-CITES": "nao-cites-table",
-			Ameaçadas: "ameacadas-table",
-		};
-		Object.entries(categoriaIdMap).forEach(([cat, id]) => {
+
+		Object.entries(categoriaIdMap).forEach(([categoria, id]) => {
 			const container = document.getElementById(id);
-			if (!container) return;
-			const filtradas = especies
-				.filter((e) => e.categoria === cat)
-				.sort((a, b) => a.nomePopular.localeCompare(b.nomePopular, "pt-BR"));
-			container.innerHTML = gerarTabela(filtradas, cat);
+
+			let filtradas = especies.filter((e) => e.categoria === categoria);
+
+			if (filtro) {
+				const termo = filtro.toLowerCase();
+
+				filtradas = filtradas.filter(
+					(e) =>
+						e.nomePopular.toLowerCase().includes(termo) ||
+						e.nomeCientifico.toLowerCase().includes(termo)
+				);
+			}
+
+			filtradas.sort((a, b) =>
+				a.nomePopular.localeCompare(b.nomePopular, "pt-BR")
+			);
+
+			container.innerHTML = gerarTabela(filtradas);
 		});
+
 		adicionarEventosAcoes();
 	}
 
-	function gerarTabela(lista, categoria) {
+	function gerarTabela(lista) {
 		if (!lista.length) return "<p>Nenhum registro.</p>";
-		let html = "<table><thead><tr><th>Nome Popular</th><th>Nome Científico</th><th>Ações</th></tr></thead><tbody>";
-		lista.forEach((especie, idx) => {
-			html += `<tr data-categoria="${categoria}" data-nome="${especie.nomePopular}">
-				<td>${especie.nomePopular}</td>
-				<td>${especie.nomeCientifico}</td>
-				<td>
-					<button class="editarBtn" data-index="${window.getEspecies().findIndex((e) => e.nomePopular === especie.nomePopular && e.categoria === categoria)}">Editar</button>
-					<button class="removerBtn" data-index="${window.getEspecies().findIndex((e) => e.nomePopular === especie.nomePopular && e.categoria === categoria)}">Remover</button>
-				</td>
+
+		let html = `
+		<table>
+		<thead>
+		<tr>
+		<th>Nome Popular</th>
+		<th>Nome Científico</th>
+		<th>Ações</th>
+		</tr>
+		</thead>
+		<tbody>`;
+
+		const especies = window.getEspecies();
+
+		lista.forEach((especie) => {
+			const index = especies.indexOf(especie);
+
+			html += `
+			<tr>
+			<td>${especie.nomePopular}</td>
+			<td>${especie.nomeCientifico}</td>
+			<td>
+			<button class="editarBtn" data-index="${index}">Editar</button>
+			<button class="removerBtn" data-index="${index}">Remover</button>
+			</td>
 			</tr>`;
 		});
+
 		html += "</tbody></table>";
+
 		return html;
 	}
 
 	function adicionarEventosAcoes() {
 		document.querySelectorAll(".editarBtn").forEach((btn) => {
-			btn.onclick = (e) => {
+			btn.onclick = () => {
 				const idx = Number(btn.dataset.index);
-				const especies = window.getEspecies();
-				const especie = especies[idx];
+
+				const especie = window.getEspecies()[idx];
+
 				editIndex = idx;
+
 				form.nomePopular.value = especie.nomePopular;
 				form.nomeCientifico.value = especie.nomeCientifico;
 				form.categoria.value = especie.categoria;
-				document.getElementById("dialogTitle").textContent = "Editar Registro";
+
 				dialog.showModal();
 			};
 		});
+
 		document.querySelectorAll(".removerBtn").forEach((btn) => {
-			btn.onclick = (e) => {
+			btn.onclick = () => {
 				const idx = Number(btn.dataset.index);
-				if (window.confirm("Deseja remover este registro?")) {
+
+				if (confirm("Remover registro?")) {
 					window.removeEspecie(idx);
+
 					renderTabelas();
 				}
 			};
@@ -102,31 +134,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	novoRegistroBtn.onclick = () => {
 		editIndex = null;
+
 		form.reset();
-		document.getElementById("dialogTitle").textContent = "Novo Registro";
+
 		dialog.showModal();
 	};
 
-	cancelarBtn.onclick = () => {
-		dialog.close();
-	};
-
-	form.onsubmit = async (e) => {
+	form.onsubmit = (e) => {
 		e.preventDefault();
+
 		const especie = {
 			nomePopular: form.nomePopular.value.trim(),
 			nomeCientifico: form.nomeCientifico.value.trim(),
 			categoria: form.categoria.value,
 		};
+
+		if (!window.getEspecies) return;
+
 		if (editIndex !== null) {
 			window.updateEspecie(editIndex, especie);
 		} else {
 			window.addEspecie(especie);
 		}
+
 		dialog.close();
+
 		renderTabelas();
 	};
 
-	criarAcoesJson();
+	criarInterfaceExtra();
+
+renderTabelas();
+
+setTimeout(() => {
 	renderTabelas();
+}, 200);
 });
