@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Woodex | Login</title>
+		<link rel="stylesheet" href="/Woodex/client/src/assets/css/main.css" />
+		<link rel="stylesheet" href="/Woodex/client/src/assets/css/pages/login.css" />
+		<script type="module" src="/Woodex/client/src/assets/js/login.js"></script>
+	</head>
+	<body class="login-page">
+		<main class="login-card">
+			<h1>Woodex</h1>
+			<p>Entre com seu usuario para acessar o registro de especies de madeira.</p>
+			<form id="loginForm">
+				<label for="username">
+					Usuario
+					<input type="text" id="username" name="username" autocomplete="username" required />
+				</label>
+				<label for="password">
+					Senha
+					<input type="password" id="password" name="password" autocomplete="current-password" required />
+				</label>
+				<button id="loginBtn" type="submit">Entrar</button>
+				<p id="loginFeedback" class="login-feedback" aria-live="polite"></p>
+			</form>
+		</main>
+	</body>
+</html>

@@ -1,0 +1,17 @@
+:root {
+	--cor-primaria: #2e5d3b;
+	--cor-secundaria: #f5f5f5;
+	--cor-tabela-header: #e0e0e0;
+	--cor-tabela-zebra: #f9fafb;
+	--cor-tabela-zebra-alt: #eaf3ea;
+	--cor-borda: #cccccc;
+	--cor-botao: #2e5d3b;
+	--cor-botao-hover: #25612a;
+	--cor-sucesso: #1f7a3d;
+	--cor-alerta: #9a6700;
+	--cor-danger: #c0392b;
+	--espacamento: 16px;
+	--raio-borda: 6px;
+	--max-width: 1200px;
+	--font-family: "Segoe UI", Arial, sans-serif;
+}

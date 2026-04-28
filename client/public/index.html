@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Registro de Espécies de Madeira</title>
+		<link rel="stylesheet" href="/Woodex/client/src/assets/css/main.css" />
+		<script type="module" src="/Woodex/client/src/assets/js/main.js"></script>
+	</head>
+	<body>
+		<main class="container">
+			<header class="topbar">
+				<div>
+					<h1>Woodex</h1>
+					<p id="sessionUser" class="session-user"></p>
+				</div>
+				<button id="logoutBtn" type="button">Sair</button>
+			</header>
+			<button id="novoRegistroBtn" type="button">Novo Registro</button>
+			<section id="tabelas-container">
+				<h2>CITES</h2>
+				<div id="cites-table"></div>
+				<h2>Não-CITES</h2>
+				<div id="nao-cites-table"></div>
+				<h2>Ameaçadas</h2>
+				<div id="ameacadas-table"></div>
+			</section>
+			<dialog id="registroDialog">
+				<form method="dialog" id="registroForm">
+					<h3 id="dialogTitle">Novo Registro</h3>
+					<label
+						>Nome Popular
+						<input type="text" id="nomePopular" name="nomePopular" required maxlength="60" />
+					</label>
+					<label
+						>Nome Científico
+						<input type="text" id="nomeCientifico" name="nomeCientifico" required maxlength="60" />
+					</label>
+					<label
+						>Categoria
+						<select id="categoria" name="categoria" required>
+							<option value="CITES">CITES</option>
+							<option value="Não-CITES">Não-CITES</option>
+							<option value="Ameaçadas">Ameaçadas</option>
+						</select>
+					</label>
+					<menu>
+						<button type="submit" id="salvarBtn">Salvar</button>
+						<button type="reset" id="cancelarBtn">Cancelar</button>
+					</menu>
+				</form>
+			</dialog>
+		</main>
+	</body>
+</html>
