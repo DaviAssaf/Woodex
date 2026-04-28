@@ -32,8 +32,10 @@ O campo `password` deve armazenar hash `bcrypt`.
 Exemplo para gerar a senha no PHP:
 
 ```php
-password_hash('Serra2026!', PASSWORD_BCRYPT);
+password_hash('minha_senha', PASSWORD_BCRYPT);
 ```
+
+Também pode ser feito usando um conversor para bcrypt online
 
 ### Tabela `woods`
 
